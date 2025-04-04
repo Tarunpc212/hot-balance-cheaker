@@ -1,7 +1,6 @@
 import requests
 import json
 import base64
-import sys
 
 # NEAR RPC API Endpoint
 RPC_URL = "https://rpc.mainnet.near.org"
@@ -18,7 +17,7 @@ def send_telegram_notification(message):
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     requests.post(url, data=data)
 
-# ✅ Addresses for balance check
+# ✅ Testing Addresses Only
 addresses = [
     "sahileditzzz123.tg",
     "7332495255.tg",
@@ -88,6 +87,12 @@ def generate_report():
     print(report_text)
     send_telegram_notification(report_text)
 
-# Check if the script is triggered from Telegram
-if len(sys.argv) > 1 and sys.argv[1] == "main.py":
-    generate_report()
+def handle_telegram_command(command):
+    if command == "/check main.py":
+        generate_report()
+        send_telegram_notification("✅ Balance check completed!")
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:
+        handle_telegram_command(sys.argv[1])
