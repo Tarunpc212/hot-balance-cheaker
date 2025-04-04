@@ -2,8 +2,6 @@ import requests
 import json
 import base64
 import time
-import telegram
-from telegram.ext import Updater, CommandHandler
 
 # NEAR RPC API Endpoint
 RPC_URL = "https://rpc.mainnet.near.org"
@@ -76,30 +74,51 @@ def get_token_balance(address, decimals):
         print(f"❌ Exception fetching balance for {address}: {str(e)}")
     return 0.0
 
-def check_balance(update, context):
+def generate_report():
     token_decimals = get_token_decimals()
     balances = {}
     for idx, addr in enumerate(addresses, start=1):
         balance = get_token_balance(addr, token_decimals)
         balances[addr] = balance
-    
+        print(f"{idx}. {addr}: {balance:.6f} HOT")
+
     report_text = "\n🔹 Updated HOT Balance 🔹\n" + "\n".join(
         f"{idx}. {addr}: {balance:.6f} HOT" for idx, (addr, balance) in enumerate(balances.items(), start=1)
     )
-    
+    print(report_text)
     send_telegram_notification(report_text)
-    update.message.reply_text("✅ Balance checked and reported!")
 
-def start(update, context):
-    update.message.reply_text("🤖 Bot is Active! Send /check to get balances.")
+# Telegram Command Handler
+def handle_telegram_commands():
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+    last_update_id = None
+    send_telegram_notification("🤖 Bot is Active! Send /check to get balances.")
 
-def main():
-    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("check", check_balance))
-    updater.start_polling()
-    updater.idle()
+    while True:
+        try:
+            response = requests.get(url)
+            data = response.json()
 
-if __name__ == "__main__":
-    main()
+            if "result" in data:
+                for update in data["result"]:
+                    if last_update_id is None or update["update_id"] > last_update_id:
+                        last_update_id = update["update_id"]
+                        
+                        if "message" in update and "text" in update["message"]:
+                            chat_id = str(update["message"]["chat"]["id"])
+                            message_text = update["message"]["text"].strip().lower()
+
+                            if chat_id == TELEGRAM_CHAT_ID:
+                                if message_text == "/check":
+                                    generate_report()
+                                elif message_text == "/start":
+                                    send_telegram_notification("✅ Bot Already Running!")
+                                elif message_text == "/stop":
+                                    send_telegram_notification("❌ Bot Stopped by User.")
+                                    return
+        except Exception as e:
+            print(f"Error checking Telegram messages: {str(e)}")
+        time.sleep(5)
+
+# Start handling Telegram
+handle_telegram_commands()
