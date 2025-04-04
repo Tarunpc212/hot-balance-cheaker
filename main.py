@@ -1,7 +1,7 @@
 import requests
 import json
 import base64
-import time
+import sys
 
 # NEAR RPC API Endpoint
 RPC_URL = "https://rpc.mainnet.near.org"
@@ -18,7 +18,7 @@ def send_telegram_notification(message):
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     requests.post(url, data=data)
 
-# ✅ Testing Addresses Only
+# ✅ Addresses for balance check
 addresses = [
     "sahileditzzz123.tg",
     "7332495255.tg",
@@ -88,37 +88,6 @@ def generate_report():
     print(report_text)
     send_telegram_notification(report_text)
 
-# Telegram Command Handler
-def handle_telegram_commands():
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
-    last_update_id = None
-    send_telegram_notification("🤖 Bot is Active! Send /check to get balances.")
-
-    while True:
-        try:
-            response = requests.get(url)
-            data = response.json()
-
-            if "result" in data:
-                for update in data["result"]:
-                    if last_update_id is None or update["update_id"] > last_update_id:
-                        last_update_id = update["update_id"]
-                        
-                        if "message" in update and "text" in update["message"]:
-                            chat_id = str(update["message"]["chat"]["id"])
-                            message_text = update["message"]["text"].strip().lower()
-
-                            if chat_id == TELEGRAM_CHAT_ID:
-                                if message_text == "/check":
-                                    generate_report()
-                                elif message_text == "/start":
-                                    send_telegram_notification("✅ Bot Already Running!")
-                                elif message_text == "/stop":
-                                    send_telegram_notification("❌ Bot Stopped by User.")
-                                    return
-        except Exception as e:
-            print(f"Error checking Telegram messages: {str(e)}")
-        time.sleep(5)
-
-# Start handling Telegram
-handle_telegram_commands()
+# Check if the script is triggered from Telegram
+if len(sys.argv) > 1 and sys.argv[1] == "main.py":
+    generate_report()
